@@ -101,7 +101,7 @@ class ClassyVirtualReferencePoint(object):
 #        return (keypoints, np.array(descriptors, dtype = np.float32).reshape((-1, self.rowsize)))
         return (keypoints,np.array(descriptors))
 
-    def getReferencePoint(self, keypoints, descriptors, bounds, eye1, eye2, img = None):
+    def getReferencePoint(self, keypoints, descriptors, bounds, eye1, eye2, img=None):
         """
             takes in new keypoints, and descriptors
             finds the two closest matches for each incoming one, and then verifies that they are close enough
@@ -137,7 +137,7 @@ class ClassyVirtualReferencePoint(object):
                         self.keypointdata[oldlabel].guess = keypoints[i].pt[0] + self.keypointdata[oldlabel].vector[0], \
                                                  keypoints[i].pt[1] + self.keypointdata[oldlabel].vector[1]
                         #if there's an image, draw on it
-                        if img != None:
+                        if img is not None:
                             cx, cy = keypoints[i].pt#this is different from my other code but I think it's good
                             cx, cy = int(cx), int(cy)
                             cv2.putText(img, str(oldlabel), (cx, cy), cv2.FONT_HERSHEY_SIMPLEX, .25, (100, 170, 0))
@@ -147,7 +147,7 @@ class ClassyVirtualReferencePoint(object):
                 kp.weight = 0
         if max([kp.weight for kp in self.keypointdata]) > 0: #if we've found at least 1 keypoint, recalculate the virtual reference
             self.calculateReferencePoint()
-        if img != None:
+        if img is not None:
             self.drawPt(self.reference[0], self.reference[1], img)
         return (self.reference)
 
