@@ -8,7 +8,7 @@ int main( int argc, const char** argv ) {
         return -1;
     }
     time1= std::chrono::steady_clock::now();
-    cv::VideoCapture capture(0);
+    cv::VideoCapture capture("/Users/nicknorden/Downloads/eye_roll_front_cam3.MOV");
     if(capture.isOpened()){
         while(1){
             //int64 start = cv::getTickCount();
@@ -27,27 +27,95 @@ int main( int argc, const char** argv ) {
             //double fps = cv::getTickFrequency()/(cv::getTickCount()-start);
             //std::cout<<"FPS"<<fps<<std::endl;
             int c = cv::waitKey(10);
-            if((char)c == ' ') break;
+            if((char)c == ' '){
+                break;
+            }
         }
     }
     
-    pupilPrint(pointList);
+    Mved.InitData(pointList, "/Users/nicknorden/Desktop/", "pupil_data.txt", ENABLE_DFT, "pupil_dft.txt", ENABLE_IMRECOGNIZER);
+
     return 0;
 }
 
-void pupilPrint(std::vector<cv::Point3d> pp){
-    std::ofstream myFile;
-    myFile.open("/Users/nicknorden/Desktop/Untitled.txt");
-    int n = 0;
-    auto xEQ = (pp.begin())->x;
-    auto yEQ = (pp.begin())->y;
-    for (auto i = pp.begin(); i != pp.end(); ++i){
-        double ptx = (((*i).x)-xEQ);
-        double pty= (((*i).y)-yEQ);
-        myFile<<ptx<<'\t'<<n++<<'\t'<<pty<<std::endl;
-    }
-    myFile.close();
+
+void DecisionMaker::ImRecognizer()
+{
+    cv::Mat plot(cv::Size(250,250), CV_8U, 255);
+    for (int i = 0; i < pupil_data_xy_image.size(); i++)
+        plot.at<int>(pupil_data_xy_image[i]) = 0;
+    /*
+     * need to use erosion filter to enlarge the points and create a better image
+     */
+    cv::imshow("pupil data", plot);
+    cv::waitKey(5000);
+    cv::destroyAllWindows();
 }
+
+
+void DecisionMaker::WritePupilDft(std::string dft_file_name)
+{
+    
+    Mved.file.open(paths+dft_file_name);
+    Mved.dtf_mat = cv::Mat((int)Mved.x_axis_pupil_points.size(),1,CV_64F,Mved.x_axis_pupil_points.data());
+    cv::dft(Mved.dtf_mat, Mved.complexI, cv::DFT_REAL_OUTPUT);
+    Mved.file<<Mved.complexI<<std::endl;
+    Mved.file.close();
+}
+ 
+void DecisionMaker::WritePupilData(std::string pupil_data_file_name)
+{
+    int n =  0;
+    Mved.file.open(paths+pupil_data_file_name);
+    for (auto i = pupil_points.begin(); i != pupil_points.end(); ++i)
+    {
+        double ptx = (((*i).x)-xEQ);
+        double pty = (((*i).y)-yEQ);
+        if(ENABLE_X_AXIS_PUPIL_POINTS)
+        {
+            x_axis_pupil_points.push_back(cv::Point((*i).x));
+        }
+        if(ENABLE_IMRECOGNIZER)
+        {
+            if( ((abs(ptx)-MIN_X_VAL) > 0) && ((abs(pty)-MIN_Y_VAL) > 0) )
+            {
+            pupil_data_xy_image.push_back(cv::Point(ptx+50,pty+50));
+            }
+        }
+        /*
+         * create some test case where it looks at the last value of ptx and pty with the current value.
+         * If ( ((ptx_previous - ptx_current)>SOME_VAL_X) && ((pty_previous - pty_current)>SOME_VAL_Y) )
+         * then we will consider this a value where the pupil location failed and do not want to consider it
+         * this will only be true for eye rolling where people typically obscure their eyes with their eyelid
+         */
+        Mved.file<<ptx<<'\t'<<n++<<'\t'<<pty<<'\t'<<(*i).z<<std::endl;
+    }
+    Mved.file.close();
+}
+
+void DecisionMaker::InitData(std::vector<cv::Point3d> pointList, std::string path,
+                             std::string pupil_data_file_name, bool dft,
+                             std::string dft_file_name,
+                             bool imrec)
+{
+    paths = path;
+    pupil_points = pointList;
+    ENABLE_X_AXIS_PUPIL_POINTS = ENABLE_DFT;
+    xEQ = (pupil_points.begin())->x;
+    yEQ = (pupil_points.begin())->y;
+    WritePupilData(pupil_data_file_name);
+    if(ENABLE_X_AXIS_PUPIL_POINTS)
+    {
+        WritePupilDft(dft_file_name);
+    }
+    if(ENABLE_IMRECOGNIZER)
+    {
+        ImRecognizer();
+    }
+    
+}
+
+
 
 void detectAndDisplay( cv::Mat frame ) {
     std::vector<cv::Rect> faces;
@@ -70,21 +138,24 @@ void findEyes(cv::Mat frame_gray, cv::Rect face) {
     int eye_region_height = face.width * (kEyePercentHeight/100.0);
     int eye_region_top = face.height * (kEyePercentTop/100.0);
     cv::Rect leftEyeRegion(face.width*(kEyePercentSide/100.0),eye_region_top,eye_region_width,eye_region_height);
-    //cv::Rect rightEyeRegion(face.width - eye_region_width -face.width *(kEyePercentSide/100.0),
-    //                     eye_region_top,eye_region_width,eye_region_height);
-    //cv::Point rightPupil = findEyeCenter(faceROI,rightEyeRegion);
     cv::Point leftPupil = findEyeCenter(faceROI,leftEyeRegion);
     leftPupil.x += leftEyeRegion.x;
     leftPupil.y += leftEyeRegion.y;
-    //rightPupil.x += rightEyeRegion.x;
-    //rightPupil.y += rightEyeRegion.y;
-   // cv::Point cyclops = {(rightPupil.x+leftPupil.x)/2,(rightPupil.y+leftPupil.y)/2};
-//auto time2= std::chrono::steady_clock::now();
-    //std::chrono::duration<double, std::centi> dt = time2-time1;
-   //pointList.push_back(cv::Point3d(cyclops.x,cyclops.y,dt.count())); //dt.count()
+    #ifdef USE_RIGHT_EYE
+    std::cout<<"using right eye"<<std::endl;
+    cv::Rect rightEyeRegion(face.width - eye_region_width -face.width *(kEyePercentSide/100.0),
+                         eye_region_top,eye_region_width,eye_region_height);
+    cv::Point rightPupil = findEyeCenter(faceROI,rightEyeRegion);
+    rightPupil.x += rightEyeRegion.x;
+    rightPupil.y += rightEyeRegion.y;
+    cv::Point cyclops = {(rightPupil.x+leftPupil.x)/2,(rightPupil.y+leftPupil.y)/2};
+    auto time2= std::chrono::steady_clock::now();
+    std::chrono::duration<double, std::centi> dt = time2-time1;
+    pointList.push_back(cv::Point3d(cyclops.x,cyclops.y,dt.count())); //dt.count()
+    circle(debugFace, cyclops, 3, cvScalar(255));
+    #endif
     pointList.push_back(cv::Point3d(leftPupil.x,leftPupil.y,1));
-    //circle(debugFace, leftPupil, 3, cvScalar(255));
-    //circle(debugFace, rightPupil, 3, cvScalar(255));
+    circle(debugFace, leftPupil, 3, cvScalar(255));
     //std::cout<<"movement of eye: "<<   <<std::endl;
     imshow(face_window_name, debugFace);
     //time1 = std::chrono::steady_clock::now();
