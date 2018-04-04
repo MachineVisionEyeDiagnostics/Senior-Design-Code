@@ -23,6 +23,13 @@
 #include <math.h>
 #include <time.h>
 
+#define ENABLE_DFT true
+#define DISABLE_DFT false
+#define ENABLE_IMRECOGNIZER true
+#define DISABLE_IMRECOGNIZER false
+#define MIN_X_VAL 5
+#define MIN_Y_VAL 5
+
 /** Function Headers */
 void detectAndDisplay( cv::Mat frame );
 void findEyes(cv::Mat, cv::Rect);
@@ -54,4 +61,52 @@ const std::string face_window_name = "leftPupil";
 const cv::RNG rng(12345);
 cv::Mat debugImage;
 std::vector<cv::Point3d> pointList;
+
+class DecisionMaker {
+public:
+    std::string paths;
+    std::ofstream file;
+    void ImRecognizer(void);
+    void WritePupilDft(std::string dft_file_name);
+    void WritePupilData(std::string pupil_data_file_name);
+    void InitData(std::vector<cv::Point3d> pointList, std::string path, std::string pupil_data_file_name, bool enable_dft, std::string dft_file_name, bool enable_imrec);
+private:
+    cv::Mat dtf_mat;
+    cv::Mat complexI;
+    std::vector<cv::Point3d> pupil_points;
+    std::vector<cv::Point> x_axis_pupil_points;
+    std::vector<cv::Point> pupil_data_xy_image;
+    bool ENABLE_X_AXIS_PUPIL_POINTS;
+    double xEQ;
+    double yEQ;
+};
+
+DecisionMaker Mved;
 std::chrono::steady_clock::time_point time1;
+
+
+/*
+ 
+ void pupilPrint(std::vector<cv::Point3d> pp){
+ std::ofstream myFile;
+ myFile.open("/Users/nicknorden/Desktop/pupil_data.txt");
+ int n = 0;
+ auto xEQ = (pp.begin())->x;
+ auto yEQ = (pp.begin())->y;
+ for (auto i = pp.begin(); i != pp.end(); ++i){
+ split_x.push_back(cv::Point((*i).x));
+ double ptx = (((*i).x)-xEQ);
+ double pty= (((*i).y)-yEQ);
+ myFile<<ptx<<'\t'<<n++<<'\t'<<pty<<std::endl;
+ }
+ cv::Mat dtf_mat = cv::Mat((int)split_x.size(),1,CV_64F,split_x.data());
+ 
+ //cv::Mat planes[] = {cv::Mat_<float>(dtf_mat), cv::Mat::zeros(dtf_mat.size(), CV_32F)};
+ cv::Mat complexI;    //Complex plane to contain the DFT coefficients {[0]-Real,[1]-Img}
+ //cv::merge(planes, 2, complexI);
+ cv::dft(dtf_mat, complexI, cv::DFT_REAL_OUTPUT);
+ std::cout<<complexI<<std::endl;
+ myFile.close();
+ 
+ }
+*/
