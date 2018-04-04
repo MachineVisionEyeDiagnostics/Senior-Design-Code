@@ -8,7 +8,7 @@ int main( int argc, const char** argv ) {
         return -1;
     }
     time1= std::chrono::steady_clock::now();
-    cv::VideoCapture capture("/Users/nicknorden/Downloads/eye_roll_front_cam3.MOV");
+    cv::VideoCapture capture(0);
     if(capture.isOpened()){
         while(1){
             //int64 start = cv::getTickCount();
@@ -33,22 +33,40 @@ int main( int argc, const char** argv ) {
         }
     }
     
-    Mved.InitData(pointList, "/Users/nicknorden/Desktop/", "pupil_data.txt", ENABLE_DFT, "pupil_dft.txt", ENABLE_IMRECOGNIZER);
+    Mved.InitData(pointList, "/Users/nicknorden/Desktop/", "pupil_data_no_filter.txt", ENABLE_DFT, "pupil_dft.txt", ENABLE_IMRECOGNIZER);
+    src = cv::imread("/Users/nicknorden/Desktop/filtered_pupil_data.png");
+    
+    cv::namedWindow( "Erosion", CV_WINDOW_AUTOSIZE );
 
+    Erosion(0,0);
     return 0;
 }
 
 
+void Erosion( int, void* )
+{
+    cv::Mat element = (cv::Mat_<uchar>(3,3) <<  0,0,1,0,0,
+                                                0,1,1,1,0,
+                                                1,1,1,1,1,
+                                                0,1,1,1,0,
+                                                0,0,1,0,0);
+    /// Apply the erosion operation
+    erode( src, erosion_dst, element );
+    cv::imshow( "Erosion", erosion_dst );
+    cv::waitKey(0);
+}
+
 void DecisionMaker::ImRecognizer()
 {
-    cv::Mat plot(cv::Size(250,250), CV_8U, 255);
+    cv::Mat plot(cv::Size(300,300), CV_8U, 255);
     for (int i = 0; i < pupil_data_xy_image.size(); i++)
         plot.at<int>(pupil_data_xy_image[i]) = 0;
     /*
      * need to use erosion filter to enlarge the points and create a better image
      */
-    cv::imshow("pupil data", plot);
-    cv::waitKey(5000);
+    
+    cv::imwrite("/Users/nicknorden/Desktop/filtered_pupil_data.png", plot);
+    cv::waitKey(50);
     cv::destroyAllWindows();
 }
 
@@ -66,32 +84,47 @@ void DecisionMaker::WritePupilDft(std::string dft_file_name)
 void DecisionMaker::WritePupilData(std::string pupil_data_file_name)
 {
     int n =  0;
+    x_stack.push(999);
+    y_stack.push(999);
+    std::ofstream filef;
+    filef.open("/Users/nicknorden/Desktop/pupil_data_filter.txt");
     Mved.file.open(paths+pupil_data_file_name);
     for (auto i = pupil_points.begin(); i != pupil_points.end(); ++i)
     {
-        double ptx = (((*i).x)-xEQ);
-        double pty = (((*i).y)-yEQ);
+        int ptx = (((*i).x)-xEQ);
+        int pty = (((*i).y)-yEQ);
         if(ENABLE_X_AXIS_PUPIL_POINTS)
         {
             x_axis_pupil_points.push_back(cv::Point((*i).x));
         }
         if(ENABLE_IMRECOGNIZER)
         {
-            if( ((abs(ptx)-MIN_X_VAL) > 0) && ((abs(pty)-MIN_Y_VAL) > 0) )
+            if( (abs(ptx)-MIN_X_VAL > 0) &&
+                 ((abs(pty)-MIN_Y_VAL) > 0) &&
+                 (abs((abs(ptx)-abs(x_stack.top()))) < MAX_X_JMP) &&
+                 (abs((abs(pty)-abs(y_stack.top()))) < MAX_Y_JMP) )
+            
             {
-            pupil_data_xy_image.push_back(cv::Point(ptx+50,pty+50));
+                std::cout<<ptx<<','<<x_stack.top()<<'\t'
+                         <<pty<<','<<y_stack.top()<<std::endl;
+                
+                pupil_data_xy_image.push_back(cv::Point(ptx+50,pty+50));
+                filef<<ptx<<'\t'<<n++<<'\t'<<pty<<std::endl;
+             }
+            else
+            {
+                x_stack.pop();
             }
         }
-        /*
-         * create some test case where it looks at the last value of ptx and pty with the current value.
-         * If ( ((ptx_previous - ptx_current)>SOME_VAL_X) && ((pty_previous - pty_current)>SOME_VAL_Y) )
-         * then we will consider this a value where the pupil location failed and do not want to consider it
-         * this will only be true for eye rolling where people typically obscure their eyes with their eyelid
-         */
-        Mved.file<<ptx<<'\t'<<n++<<'\t'<<pty<<'\t'<<(*i).z<<std::endl;
+        Mved.file<<ptx<<'\t'<<n++<<'\t'<<pty<<'\t'<<std::endl;
+        y_stack.push(pty);
+        x_stack.push(ptx);
+        
     }
     Mved.file.close();
+    filef.close();
 }
+
 
 void DecisionMaker::InitData(std::vector<cv::Point3d> pointList, std::string path,
                              std::string pupil_data_file_name, bool dft,
@@ -114,8 +147,6 @@ void DecisionMaker::InitData(std::vector<cv::Point3d> pointList, std::string pat
     }
     
 }
-
-
 
 void detectAndDisplay( cv::Mat frame ) {
     std::vector<cv::Rect> faces;

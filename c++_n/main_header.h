@@ -22,13 +22,16 @@
 #include <stdio.h>
 #include <math.h>
 #include <time.h>
+#include <stack>
 
 #define ENABLE_DFT true
 #define DISABLE_DFT false
 #define ENABLE_IMRECOGNIZER true
 #define DISABLE_IMRECOGNIZER false
-#define MIN_X_VAL 5
-#define MIN_Y_VAL 5
+#define MIN_X_VAL 2
+#define MIN_Y_VAL 2
+#define MAX_X_JMP 15
+#define MAX_Y_JMP 15
 
 /** Function Headers */
 void detectAndDisplay( cv::Mat frame );
@@ -61,9 +64,12 @@ const std::string face_window_name = "leftPupil";
 const cv::RNG rng(12345);
 cv::Mat debugImage;
 std::vector<cv::Point3d> pointList;
+std::ofstream filef;
 
 class DecisionMaker {
 public:
+    std::stack<int> x_stack;
+    std::stack<int> y_stack;
     std::string paths;
     std::ofstream file;
     void ImRecognizer(void);
@@ -84,6 +90,12 @@ private:
 DecisionMaker Mved;
 std::chrono::steady_clock::time_point time1;
 
+
+cv::Mat src;
+cv::Mat erosion_dst;
+cv::Mat dilation_dst;
+
+void Erosion( int, void* );
 
 /*
  
