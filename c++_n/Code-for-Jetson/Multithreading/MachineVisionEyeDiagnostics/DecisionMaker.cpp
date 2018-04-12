@@ -30,7 +30,7 @@ void DecisionMaker::PupilDft(void)
     // Need to log scale all data
 
         //Define the length of the complex arrays
-    int len = x_axis_pupil_points.size();
+    int len = (int)x_axis_pupil_points.size();
         //Input arrays
     fftw_complex x[len];
         //Output array
@@ -42,7 +42,7 @@ void DecisionMaker::PupilDft(void)
         x[i][Imag]=0;
         }
         //Plant the FFT and execute it
-    fftw_plan plan= fftw_plan_dft_1d(len, x, y, FFTW_FORWARD, FFTW_ESTIMATE);
+    fftw_plan plan= fftw_plan_dft_1d((int)len, x, y, FFTW_FORWARD, FFTW_ESTIMATE);
     fftw_execute(plan);
     //Do some cleaning
     fftw_destroy_plan(plan);

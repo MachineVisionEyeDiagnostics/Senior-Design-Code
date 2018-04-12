@@ -27,7 +27,8 @@ void EyeDetection::captureVideo() {
                 break;
             }
             test.join();
-            double fps = cv::getTickFrequency()/(cv::getTickCount()-start);
+            int64 end = cv::getTickCount();
+            double fps = cv::getTickFrequency()/(end-start);
             std::cout<<"FPS"<<fps<<std::endl;
             int c = cv::waitKey(10);
             if((char)c == ' '){
