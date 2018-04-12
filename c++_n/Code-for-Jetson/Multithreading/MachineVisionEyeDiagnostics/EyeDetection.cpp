@@ -16,7 +16,7 @@ void EyeDetection::captureVideo() {
     if(capture.isOpened()){
         capture.read(frame);
         while(1){
-            //int64 start = cv::getTickCount();
+            int64 start = cv::getTickCount();
             std::thread test(&cv::VideoCapture::read, capture, frame);
            
             if(!frame.empty()){
@@ -27,8 +27,8 @@ void EyeDetection::captureVideo() {
                 break;
             }
             test.join();
-            //double fps = cv::getTickFrequency()/(cv::getTickCount()-start);
-            //std::cout<<"FPS"<<fps<<std::endl;
+            double fps = cv::getTickFrequency()/(cv::getTickCount()-start);
+            std::cout<<"FPS"<<fps<<std::endl;
             int c = cv::waitKey(10);
             if((char)c == ' '){
                 break;

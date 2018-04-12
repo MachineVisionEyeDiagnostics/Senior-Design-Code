@@ -15,6 +15,8 @@
 #include <math.h>
 #include <time.h>
 #include <chrono>
+#include <cmath>
+#include <fftw3.h>
 
 #define ENABLE_DFT true
 #define DISABLE_DFT false
@@ -27,13 +29,15 @@
 #define MAX_Y_VAL 60
 #define MAX_X_JMP 25
 #define MAX_Y_JMP 25
+#define Real 0
+#define Imag 1
 
 class DecisionMaker {
 public:
     std::stack<int> x_stack;
     std::stack<int> y_stack;
     void ImRecognizer(void);
-    void WritePupilDft(std::string dft_file_name);
+    void PupilDft(void);
     void WritePupilData(std::string pupil_data_file_name);
     void InitData(std::vector<cv::Point3d> pointList, std::string path, std::string pupil_data_file_name, std::string dft_file_name);
 private:
@@ -43,7 +47,7 @@ private:
     cv::Mat dtf_mat;
     cv::Mat complexI;
     std::vector<cv::Point3d> pupil_points;
-    std::vector<cv::Point> x_axis_pupil_points;
+    std::vector<int> x_axis_pupil_points;
     std::vector<cv::Point> pupil_data_xy_image;
     bool ENABLE_X_AXIS_PUPIL_POINTS;
     double xEQ;

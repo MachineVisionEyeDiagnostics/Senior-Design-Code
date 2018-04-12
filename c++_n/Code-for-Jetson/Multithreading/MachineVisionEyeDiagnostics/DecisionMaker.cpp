@@ -25,14 +25,36 @@ void DecisionMaker::ImRecognizer()
 }
 
 
-void DecisionMaker::WritePupilDft(std::string dft_file_name)
+void DecisionMaker::PupilDft(void)
 {
     // Need to log scale all data
-    file.open(paths+dft_file_name);
-    dtf_mat = cv::Mat((int)x_axis_pupil_points.size(),1,CV_64F,x_axis_pupil_points.data());
-    cv::dft(dtf_mat, complexI, cv::DFT_REAL_OUTPUT);
-    file<<complexI<<std::endl;
-    file.close();
+
+        //Define the length of the complex arrays
+    int len = x_axis_pupil_points.size();
+        //Input arrays
+    fftw_complex x[len];
+        //Output array
+    fftw_complex y[len];
+        //Fill the first array with some data
+    for (int i=0; i<len; i++)
+        {
+        x[i][Real]=x_axis_pupil_points[i];
+        x[i][Imag]=0;
+        }
+        //Plant the FFT and execute it
+    fftw_plan plan= fftw_plan_dft_1d(len, x, y, FFTW_FORWARD, FFTW_ESTIMATE);
+    fftw_execute(plan);
+    //Do some cleaning
+    fftw_destroy_plan(plan);
+    fftw_cleanup();
+    //Display the results
+    std::cout << "FFT = " <<std::endl;
+    for (int i=0; i<len; i++){
+        if(y[i][Imag]<0)
+            std::cout << y[i][Real]<< " - " << abs(y[i][Imag]) << "i" << std::endl;
+        else
+            std::cout << y[i][Real]<< " + " << y[i][Imag] << "i" << std::endl;
+    }
 }
  
 void DecisionMaker::WritePupilData(std::string pupil_data_file_name)
@@ -49,7 +71,7 @@ void DecisionMaker::WritePupilData(std::string pupil_data_file_name)
         int pty = (((*i).y)-yEQ);
         if(ENABLE_X_AXIS_PUPIL_POINTS)
         {
-            x_axis_pupil_points.push_back(cv::Point((*i).x));
+            x_axis_pupil_points.push_back((*i).x);
         }
         if(ENABLE_IMRECOGNIZER)
         {
@@ -95,7 +117,7 @@ void DecisionMaker::InitData(std::vector<cv::Point3d> pointList, std::string pat
     WritePupilData(pupil_data_file_name);
     if(ENABLE_X_AXIS_PUPIL_POINTS)
     {
-        WritePupilDft(dft_file_name);
+        PupilDft();
     }
     if(ENABLE_IMRECOGNIZER)
     {
