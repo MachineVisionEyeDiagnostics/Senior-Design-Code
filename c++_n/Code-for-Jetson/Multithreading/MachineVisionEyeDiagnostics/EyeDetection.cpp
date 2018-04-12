@@ -1,28 +1,31 @@
 #include "EyeDetection.h"
 
+/*For webcam use 1
+ *For Jetson Tx2 use:
+ *"nvcamerasrc ! video/x-raw(memory:NVMM), width=(int)640, height=(int)480,format=(string)I420, framerate=(fraction)60/1 ! nvvidconv flip-method=4 ! video/x-raw, format=(string)BGRx ! videoconvert ! video/x-raw, format=(string)BGR ! appsink"
+ *For Video feed, use "/home/nvidia/projects/MachineVisionEyeDiagnostics/eye_roll_front_cam3.MOV"
+ *cv::VideoCapture capture("nvcamerasrc ! video/x-raw(memory:NVMM), width=(int)640, height=(int)480,format=(string)I420, framerate=(fraction)60/1 ! nvvidconv flip-method=4 ! video/x-raw, format=(string)BGRx ! videoconvert ! video/x-raw, format=(string)BGR ! appsink");
+*/
 
-// Postprocessing
 const bool kEnablePostProcess = true;
 const float kPostProcessThreshold = 0.90;
 
 void EyeDetection::captureVideo() {
 	cv::Mat frame;
-	cv::VideoCapture capture("nvcamerasrc ! video/x-raw(memory:NVMM), width=(int)640, height=(int)480,format=(string)I420, framerate=(fraction)60/1 ! nvvidconv flip-method=4 ! video/x-raw, format=(string)BGRx ! videoconvert ! video/x-raw, format=(string)BGR ! appsink");
+	cv::VideoCapture capture(0);
     if(capture.isOpened()){
+        capture.read(frame);
         while(1){
             //int64 start = cv::getTickCount();
             std::thread test(&cv::VideoCapture::read, capture, frame);
-            // mirror the frame
-            //cv::flip(frame, frame, 1);
-            //frame.copyTo(debugImage);
-            // Apply the classifier to the frame
-            /*if(!frame.empty()){
+           
+            if(!frame.empty()){
                 detectAndDisplay( frame );
             }
             else{
                 printf(" --(!) No captured frame -- Break!");
                 break;
-            }*/
+            }
             test.join();
             //double fps = cv::getTickFrequency()/(cv::getTickCount()-start);
             //std::cout<<"FPS"<<fps<<std::endl;
@@ -60,6 +63,7 @@ void EyeDetection::findEyes(cv::Mat frame_gray, cv::Rect face) {
     cv::Point leftPupil = findEyeCenter(faceROI,leftEyeRegion);
     leftPupil.x += leftEyeRegion.x;
     leftPupil.y += leftEyeRegion.y;
+    /*
     #ifdef USE_RIGHT_EYE
     std::cout<<"using right eye"<<std::endl;
     cv::Rect rightEyeRegion(face.width - eye_region_width -face.width *(kEyePercentSide/100.0),
@@ -73,6 +77,7 @@ void EyeDetection::findEyes(cv::Mat frame_gray, cv::Rect face) {
     pointList.push_back(cv::Point3d(cyclops.x,cyclops.y,dt.count())); //dt.count()
     circle(debugFace, cyclops, 3, cvScalar(255));
     #endif
+     */
     pointList.push_back(cv::Point3d(leftPupil.x,leftPupil.y,1));
     circle(debugFace, leftPupil, 3, cvScalar(255));
     //std::cout<<"movement of eye: "<<   <<std::endl;
@@ -87,7 +92,7 @@ const std::vector<cv::Point3d> EyeDetection::getPointList() const {
 
 
 bool EyeDetection::getFace_Cascade() {
-	bool exist = face_cascade.load("/home/nvidia/src/opencv-3.4.0/data/haarcascades/haarcascade_frontalface_alt.xml");
+	bool exist = face_cascade.load("/Users/nicknorden/Downloads/eyeLike-master/res/haarcascade_frontalface_alt.xml");
 	return exist;
 }
 

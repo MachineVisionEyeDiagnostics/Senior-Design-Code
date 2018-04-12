@@ -10,6 +10,7 @@
 #include <iostream>
 #include <fstream>
 #include <queue>
+#include <stack>
 #include <stdio.h>
 #include <math.h>
 #include <time.h>
@@ -19,16 +20,24 @@
 #define DISABLE_DFT false
 #define ENABLE_IMRECOGNIZER true
 #define DISABLE_IMRECOGNIZER false
-#define MIN_X_VAL 5
-#define MIN_Y_VAL 5
+#define MIN_X_VAL -60
+#define MIN_Y_VAL -60
+#define ORGN_VAL  1
+#define MAX_X_VAL 60
+#define MAX_Y_VAL 60
+#define MAX_X_JMP 25
+#define MAX_Y_JMP 25
 
 class DecisionMaker {
 public:
+    std::stack<int> x_stack;
+    std::stack<int> y_stack;
     void ImRecognizer(void);
     void WritePupilDft(std::string dft_file_name);
     void WritePupilData(std::string pupil_data_file_name);
     void InitData(std::vector<cv::Point3d> pointList, std::string path, std::string pupil_data_file_name, std::string dft_file_name);
 private:
+    cv::Mat erosion_dst;
 	std::string paths;
     std::ofstream file;
     cv::Mat dtf_mat;
