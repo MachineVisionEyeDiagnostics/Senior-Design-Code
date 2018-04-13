@@ -13,8 +13,6 @@
 #include <stack>
 #include <stdio.h>
 #include <math.h>
-#include <time.h>
-#include <chrono>
 #include <cmath>
 #include <fftw3.h>
 

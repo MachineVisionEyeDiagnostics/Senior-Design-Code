@@ -19,7 +19,7 @@ void DecisionMaker::ImRecognizer()
     cv::erode( erosion_dst, plot, element );
     cv::erode( plot, erosion_dst, element );
     
-    cv::imwrite("/Users/nicknorden/Desktop/filtered_pupil_data.png", erosion_dst);
+    cv::imwrite("/Users/nicknorden/Desktop/snrProj/output/filtered_pupil_data.png", erosion_dst);
     cv::waitKey(50);
     cv::destroyAllWindows();
 }
@@ -30,7 +30,7 @@ void DecisionMaker::PupilDft(void)
     // Need to log scale all data
 
         //Define the length of the complex arrays
-    int len = x_axis_pupil_points.size();
+    int len = (int)x_axis_pupil_points.size();
         //Input arrays
     fftw_complex x[len];
         //Output array
@@ -63,7 +63,7 @@ void DecisionMaker::WritePupilData(std::string pupil_data_file_name)
     x_stack.push(999);
     y_stack.push(999);
     std::ofstream filef;
-    filef.open("/Users/nicknorden/Desktop/pupil_data_filter.txt");
+    filef.open("/Users/nicknorden/Desktop/snrProj/output/pupil_data_filter.txt");
     file.open(paths+pupil_data_file_name);
     for (auto i = pupil_points.begin(); i != pupil_points.end(); ++i)
     {

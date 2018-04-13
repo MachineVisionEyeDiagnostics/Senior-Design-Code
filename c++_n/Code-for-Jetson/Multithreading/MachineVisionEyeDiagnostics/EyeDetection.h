@@ -13,7 +13,6 @@
 #include <stdio.h>
 #include <math.h>
 #include <time.h>
-#include <chrono>
 #include <thread>
 
 class EyeDetection {
