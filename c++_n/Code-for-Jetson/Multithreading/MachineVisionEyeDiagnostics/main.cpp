@@ -3,6 +3,7 @@
 #include <thread>
 #include <fftw3.h>
 
+
 int main( int argc, const char** argv ) {
     //cv::Mat frame;
 
@@ -19,10 +20,10 @@ int main( int argc, const char** argv ) {
     
     pupil.captureVideo();
     
-    mved.InitData(pupil.getPointList(), "/home/nvidia/Desktop/", "pupil_data.txt", "pupil_dft.txt");
-    
+    mved.InitData(pupil.getPointList(), "/Users/nicknorde/Desktop", "pupil_data.txt", "pupil_dft.txt");
     return 0;
 }
+
 
 
 

@@ -20,13 +20,13 @@
 #define DISABLE_DFT false
 #define ENABLE_IMRECOGNIZER true
 #define DISABLE_IMRECOGNIZER false
-#define MIN_X_VAL -60
-#define MIN_Y_VAL -60
-#define ORGN_VAL  1
-#define MAX_X_VAL 60
-#define MAX_Y_VAL 60
-#define MAX_X_JMP 25
-#define MAX_Y_JMP 25
+#define MIN_X_VAL -80
+#define MIN_Y_VAL -80
+#define ORGN_VAL  0
+#define MAX_X_VAL 80
+#define MAX_Y_VAL 80
+#define MAX_X_JMP 40
+#define MAX_Y_JMP 40
 #define Real 0
 #define Imag 1
 
@@ -38,6 +38,7 @@ public:
     void PupilDft(void);
     void WritePupilData(std::string pupil_data_file_name);
     void InitData(std::vector<cv::Point3d> pointList, std::string path, std::string pupil_data_file_name, std::string dft_file_name);
+    std::vector<cv::Point> pupil_data_xy_image;
 private:
     cv::Mat erosion_dst;
 	std::string paths;
@@ -46,7 +47,6 @@ private:
     cv::Mat complexI;
     std::vector<cv::Point3d> pupil_points;
     std::vector<int> x_axis_pupil_points;
-    std::vector<cv::Point> pupil_data_xy_image;
     bool ENABLE_X_AXIS_PUPIL_POINTS;
     double xEQ;
     double yEQ;
