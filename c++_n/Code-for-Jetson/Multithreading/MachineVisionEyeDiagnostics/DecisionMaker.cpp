@@ -76,8 +76,51 @@ void::DecisionMaker::ImRecognizer()
     midpoints.push_back(LeftMidPoint);
     midpoints.push_back(LeftMidPoint);
     
-    cv::RotatedRect Ellip = cv::fitEllipse(midpoints);
-    cout<<Ellip.size<<Ellip.center<<"";
+    float a = sqrt(((TopMidPoint.x-square.center.x)*(TopMidPoint.x-square.center.x) +
+               (TopMidPoint.y-square.center.y)*(TopMidPoint.y-square.center.y)));
+    float b = sqrt(((RightMidPoint.x-square.center.x)*(RightMidPoint.x-square.center.x) +
+               (RightMidPoint.y-square.center.y)*(RightMidPoint.y-square.center.y)));
+    cout<<a<<"::"<<b<<"";
+    float A,B,C,D,E,F;
+    float sin_theta = sin(square.angle*Pi/180);
+    float cos_theta = cos(square.angle*Pi/180);
+    
+    if(a>b){
+        A = a*a*sin_theta*sin_theta+b*b*cos_theta*cos_theta;
+        B = 2*(b*b-a*a)*sin_theta*cos_theta;
+        C = a*a*cos_theta*cos_theta+b*b*sin_theta*sin_theta;
+        D = -2*A*square.center.x-B*square.center.y;
+        E = -B*square.center.x-2*C*square.center.y;
+        F =A*square.center.x*square.center.x+B*square.center.x*square.center.y+C*square.center.y*square.center.y-a*a*b*b;
+    }
+    else{
+        swap(a,b);
+        A = a*a*sin_theta*sin_theta+b*b*cos_theta*cos_theta;
+        B = 2*(b*b-a*a)*sin_theta*cos_theta;
+        C = a*a*cos_theta*cos_theta+b*b*sin_theta*sin_theta;
+        D = -2*A*square.center.x-B*square.center.y;
+        E = -B*square.center.x-2*C*square.center.y;
+        F =A*square.center.x*square.center.x+B*square.center.x*square.center.y+C*square.center.y*square.center.y-a*a*b*b;
+        
+    }
+    float inside = 0.0;
+    int outside = 0;
+
+    for(auto i:pupil_data_xy_image){
+        float point = A*i.x*i.x+B*i.x*i.y+C*i.y*i.y+D*i.x+E*i.y+F;
+        cout<<point<<endl;
+        if(point<=0)
+            inside++;
+        else
+            outside++;
+    }
+    float result = inside/pupil_data_xy_image.size();
+    cout<<result;
+    if(result > 0.5)
+        cout<<"eye roll passed";
+    else
+        cout<<"eye roll failed";
+
 
     
     
