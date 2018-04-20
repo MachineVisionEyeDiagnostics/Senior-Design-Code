@@ -84,7 +84,8 @@ void::DecisionMaker::ImRecognizer()
     float A,B,C,D,E,F;
     float sin_theta = sin(square.angle*PI/180);
     float cos_theta = cos(square.angle*PI/180);
-    
+    //a = .8*a;
+    b = .8*b;
     if(a>b){
         A = a*a*sin_theta*sin_theta+b*b*cos_theta*cos_theta;
         B = 2*(b*b-a*a)*sin_theta*cos_theta;
@@ -108,18 +109,20 @@ void::DecisionMaker::ImRecognizer()
 
     for(auto i:pupil_data_xy_image){
         float point = A*i.x*i.x+B*i.x*i.y+C*i.y*i.y+D*i.x+E*i.y+F;
-        std::cout<<point<<std::endl;
-        if(point<=0)
-            inside++;
-        else
-            outside++;
-    }
+            if(point<=0)
+                inside++;
+            else
+                outside++;
+        }
+    
+    for(auto i: midpoints)
+        std::cout<<i<<"::";
+    std::cout<<"::"<<A<<','<<B<<','<<C<<','<<D<<','<<E<<','<<F<<"::";
     float result = inside/pupil_data_xy_image.size();
-    std::cout<<result;
-    if(result > 0.5)
-        std::cout<<"eye roll passed";
+    if(result > 0.6)
+        std::cout<<'\n'<<"eye roll passed: "<<result<<'\n';
     else
-        std::cout<<"eye roll failed";
+        std::cout<<'\n'<<"eye roll failed: "<<result<<'\n';
 
 
     
@@ -197,23 +200,20 @@ void DecisionMaker::ImRecognizer()
 }
 */
 
-void DecisionMaker::PupilDft(void)
-{
-    // Need to log scale all data
+void DecisionMaker::PupilDft(void){
 
-        //Define the length of the complex arrays
     int len = (int)x_axis_pupil_points.size();
-        //Input arrays
+    //Input arrays
     fftw_complex x[len];
-        //Output array
+    //Output array
     fftw_complex y[len];
-        //Fill the first array with some data
+    //Fill the first array with some data
     for (int i=0; i<len; i++)
-        {
+    {
         x[i][Real]=x_axis_pupil_points[i];
         x[i][Imag]=0;
-        }
-        //Plant the FFT and execute it
+    }
+    //Plant the FFT and execute it
     fftw_plan plan= fftw_plan_dft_1d(len, x, y, FFTW_FORWARD, FFTW_ESTIMATE);
     fftw_execute(plan);
     //Do some cleaning
@@ -221,13 +221,16 @@ void DecisionMaker::PupilDft(void)
     fftw_cleanup();
     //Display the results
     std::cout << "FFT = " <<std::endl;
-    for (int i=0; i<len; i++){
-        if(y[i][Imag]<0)
-            std::cout << y[i][Real]<< " - " << abs(y[i][Imag]) << "i" << std::endl;
-        else
-            std::cout << y[i][Real]<< " + " << y[i][Imag] << "i" << std::endl;
+    double mag[len/2+1];
+    double sum_of_harmonics = 0;
+    for (int i=1; i<len/2; i++){
+        mag[i] = sqrt(y[i][0]*y[i][0]+y[i][1]*y[i][1]);
+        sum_of_harmonics += mag[i+1];
     }
+    std::cout<<'\n'<<"harmonic percentage: "<<sum_of_harmonics/mag[1]<<'\n';
 }
+
+
  
 void DecisionMaker::WritePupilData(std::string pupil_data_file_name)
 {
@@ -262,7 +265,7 @@ void DecisionMaker::WritePupilData(std::string pupil_data_file_name)
                  *         <<pty<<','<<y_stack.top()<<std::endl;
                  */
                 pupil_data_xy_image.push_back(cv::Point(ptx+100,pty+100));
-                filef<<ptx<<'\t'<<n++<<'\t'<<pty<<std::endl;
+                filef<<ptx+100<<'\t'<<n++<<'\t'<<pty+100<<std::endl;
             }
             else
             {

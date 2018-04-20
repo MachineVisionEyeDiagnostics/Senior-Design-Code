@@ -20,13 +20,13 @@
 #define DISABLE_DFT false
 #define ENABLE_IMRECOGNIZER true
 #define DISABLE_IMRECOGNIZER false
-#define MIN_X_VAL -80
-#define MIN_Y_VAL -80
-#define ORGN_VAL  0
-#define MAX_X_VAL 80
-#define MAX_Y_VAL 80
-#define MAX_X_JMP 40
-#define MAX_Y_JMP 40
+#define MIN_X_VAL -60
+#define MIN_Y_VAL -60
+#define ORGN_VAL  1
+#define MAX_X_VAL 60
+#define MAX_Y_VAL 60
+#define MAX_X_JMP 25
+#define MAX_Y_JMP 25
 #define Real 0
 #define Imag 1
 

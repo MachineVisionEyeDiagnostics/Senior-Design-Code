@@ -29,7 +29,7 @@ void EyeDetection::captureVideo() {
             }
             test.join();
             double fps = cv::getTickFrequency()/((double)(cv::getTickCount()-begin));
-            std::cout<<"FPS "<<fps<<std::endl;
+            std::cout<<"AVERGAGE FPS "<<fps<<std::endl;
             int c = cv::waitKey(10);
             if((char)c == ' '){
                 break;
@@ -159,18 +159,34 @@ cv::Point EyeDetection::findEyeCenter(cv::Mat face, cv::Rect eye) {
     // draw eye region
     //rectangle(face,eye,1234);
     //-- Find the gradient
+    
+    /*
     cv::Mat gradientX = computeMatXGradient(eyeROI);
     cv::Mat gradientY = computeMatXGradient(eyeROI.t()).t();
     //-- Normalize and threshold the gradient
     // compute all the magnitudes
     
     cv::Mat mags = matrixMagnitude(gradientX, gradientY);
+    */
+    
+    cv::Mat gradientX;
+    cv::Sobel(eyeROI, gradientX,CV_64F, 1, 0, 3);
+    cv::Mat gradientY;
+    cv::Sobel(eyeROI, gradientY, CV_64F, 0, 1, 3);
+    //-- Normalize and threshold the gradient
+    // compute all the magnitudes
+    cv::Mat mags(gradientX.size(),gradientX.depth());
+    cv::magnitude(gradientX, gradientY, mags);
+    cv::sort(mags, mags, CV_SORT_EVERY_ROW|CV_SORT_DESCENDING);
+
     //compute the threshold
     
-    double gradientThresh = computeDynamicThreshold(mags, kGradientThreshold);
+   // double gradientThresh = computeDynamicThreshold(mags, kGradientThreshold);
+     double gradientThresh = cv::mean(mags)[0];
     //double gradientThresh = kGradientThreshold;
     //double gradientThresh = 0;
     //normalize
+    
     for (int y = 0; y < eyeROI.rows; ++y) {
         double *Xr = gradientX.ptr<double>(y), *Yr = gradientY.ptr<double>(y);
         const double *Mr = mags.ptr<double>(y);
@@ -187,6 +203,7 @@ cv::Point EyeDetection::findEyeCenter(cv::Mat face, cv::Rect eye) {
         }
     }
     //cv::String debugWindow = "debugwindow";
+    //cv::namedWindow(debugWindow);
     //imshow(debugWindow,gradientX);
     //-- Create a blurred and inverted image for weighting
     cv::Mat weight;
@@ -206,6 +223,8 @@ cv::Point EyeDetection::findEyeCenter(cv::Mat face, cv::Rect eye) {
     // it evaluates every possible center for each gradient location instead of
     // every possible gradient location for every center.
     //printf("Eye Size: %ix%i\n",outSum.cols,outSum.rows);
+    /*
+    
     for (int y = 0; y < weight.rows; ++y) {
         const double *Xr = gradientX.ptr<double>(y), *Yr = gradientY.ptr<double>(y);
        
@@ -218,6 +237,10 @@ cv::Point EyeDetection::findEyeCenter(cv::Mat face, cv::Rect eye) {
             testPossibleCentersFormula(x, y, weight, gX, gY, outSum);
         }
     }
+     */
+    computeSetSize(mags);
+    
+    
     // scale all the values down, basically averaging them
     double numGradients = (weight.rows*weight.cols);
     cv::Mat out;
@@ -241,11 +264,128 @@ cv::Point EyeDetection::findEyeCenter(cv::Mat face, cv::Rect eye) {
     return unscalePoint(maxP,eye);
 }
 
+
+double EyeDetection::computeSetSize(cv::Mat &mags){
+    const double threshold = 0.0001;
+    std::vector<cv::Point3d> centers;
+    const double sigma = 0.1;
+    const double beta = 0.5;
+    double a = 1;
+    //const int   max_iter = 30;
+    for(int i = 0; i < mags.rows; i++){
+        for( int j = 0; j < mags.cols; j++){
+            int cx = i;
+            int cy = j;
+            double obj = objectiveFunction(cx,cy);
+            cv::Point g = gradientFunction(cx, cy);
+            double g1 = g.x;
+            double g2 = g.y;
+            //int k = 0;
+            while( sqrt(g1*g1+g2*g2) > threshold ){
+                double newobj = objectiveFunction(cx-a*g1,cy-a*g1);
+                while(((newobj-obj)/a) > (sigma*-1*g1*g1+g2+g2)){
+                    a = a*beta;
+                    newobj = objectiveFunction(cx-a*g1,cx-a*g2);
+                }
+            }
+        }
+        centers.push_back(cv::Point3d(newobj,cx,cy));
+    }
+
+}
+double EyeDetection::objectiveFunction(int cx, int cy){
+   // cv::Mat out;
+    int n=0;
+    for (int y = 0; y < mags.rows; ++y) {
+        const double *Xq = gradientX.ptr<double>(y), *Yq = gradientY.ptr<double>(y);
+        //const double *Or = out.ptr<double>(y);
+        for (int x = 0; x < mags.cols; ++x) {
+            double gx = Xq[x], gy = Yq[x];
+            
+            if (gx == 0.0 && gy == 0.0 && x == cx && y == cy) {
+                continue;
+            }
+            double dx = x - cx;
+            double dy = y - cy;
+            // normalize d
+            double magnitude = (sqrt((dx * dx) + (dy * dy)));
+            dx = dx/magnitude;
+            dy = dy/magnitude;
+            double dottProduct = abs(dx*gx + dy*gy);
+            dottProduct = std::max(0.0,dottProduct);
+            dottProduct += 2*dottProduct; //(Wr[cx]/kWeightDivisor);
+            n++;
+        }
+    }
+    dottproduct = dottProduct/n;
+    return (dottProduct);
+}
+
+cv::Point EyeDetection::gradientFunction(int cx, int cy){
+    for (int y = 0; y < mags.rows; ++y) {
+        const double *Xr = gradientX.ptr<double>(y), *Yr = gradientY.ptr<double>(y);
+        for (int x = 0; x < mags.cols; ++x) {
+            double gx = Xr[x], gy = Yr[x];
+            if (gx == 0.0 && gy == 0.0 && x == cx && y == cy) {
+                continue;
+            }
+            double dx = x - cx;
+            double dy = y - cy;
+            double n = (sqrt((dx * dx) + (dy * dy)));
+            cv::Mat g = cv::Mat::zeros(2,1);
+            g(0,0) = gx;
+            g(1,0) = gy;
+            cv::Mat c = cv::Mat::zeros(2,1);
+            c(0,0) = cx;
+            c(1,0) = cy;
+            double e = (x-cx)*g;
+            objdx += ((x-cx)*e*e -g.at<double>(0,0)*e*n*n)/(n*n*n*n);
+            objdy += ((x-cx)*e*e -g.at<double>(0,0)*e*n*n)/(n*n*n*n);
+        }
+    }
+    return cv::Point(objdx*2/(y+1), objdy*2/(y+1));
+}
+
+
+/*
+ % Armijo stepsize rule parameters
+ sigma = .1;
+ beta = .5;
+ obj=func(x);
+ g=grad(x);
+ k=0;                                  % k = # iterations
+ nf=1;                    % nf = # function eval.
+ 
+ % Begin method
+ while  norm(g) > 1e-6
+ d = -g;                   % steepest descent direction
+ a = 1;
+ newobj = func(x + a*d);
+ nf = nf+1;
+ while (newobj-obj)/a > sigma*g'*d
+ a = a*beta;
+ newobj = func(x + a*d);
+ nf = nf+1;
+ end
+ if (mod(k,100)==1) fprintf('%5.0f %5.0f %12.5e \n',k,nf,obj); end
+ x = x + a*d;
+ obj=newobj;
+ g=grad(x);
+ k = k + 1;
+ end
+ 
+ % Output x and k
+ x, k
+ 
+ */
+
+
 //#pragma mark Postprocessing
 
 bool EyeDetection::floodShouldPushPoint(const cv::Point &np, const cv::Mat &mat) {
     return inMat(np, mat.rows, mat.cols);
 }
+
 
 // returns a mask
 cv::Mat EyeDetection::floodKillEdges(cv::Mat &mat) {
@@ -303,6 +443,7 @@ cv::Mat EyeDetection::matrixMagnitude(const cv::Mat &matX, const cv::Mat &matY) 
 double EyeDetection::computeDynamicThreshold(const cv::Mat &mat, double stdDevFactor) {
     cv::Scalar stdMagnGrad, meanMagnGrad;
     cv::meanStdDev(mat, meanMagnGrad, stdMagnGrad);
-    double stdDev = stdMagnGrad[0] / sqrt(mat.rows*mat.cols);
-    return stdDevFactor * stdDev + meanMagnGrad[0];
+    //double stdDev = stdMagnGrad[0] / sqrt(mat.rows*mat.cols);
+    //return stdDevFactor * stdDev + meanMagnGrad[0];
+    return meanMagnGrad[0];
 }
