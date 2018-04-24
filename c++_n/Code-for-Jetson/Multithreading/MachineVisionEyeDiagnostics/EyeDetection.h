@@ -23,7 +23,7 @@ public:
 /** Function Headers */
     cv::Point gradientFunction(int cx, int cy,cv::Mat &gradientX, cv::Mat &gradientY);
     double objectiveFunction(int cx, int cy,cv::Mat &gradientX, cv::Mat &gradientY);
-    std::vector<cv::Point3d> computeSetSize(cv::Mat &mags,cv::Mat &gradientX, cv::Mat &gradientY);
+    std::vector<cv::Point3d> centerLoc(cv::Mat &mags,cv::Mat &gradientX, cv::Mat &gradientY);
 	void captureVideo();
 	void detectAndDisplay( cv::Mat );
 	void findEyes( cv::Mat, cv::Rect);

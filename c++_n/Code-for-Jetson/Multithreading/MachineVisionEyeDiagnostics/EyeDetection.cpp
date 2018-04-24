@@ -239,7 +239,7 @@ cv::Point EyeDetection::findEyeCenter(cv::Mat face, cv::Rect eye) {
     }
      */
    // double *Xr = gradientX.ptr<double>(), *Yr = gradientY.ptr<double>();
-    computeSetSize(mags,gradientX,gradientY);
+    centerLoc(mags,gradientX,gradientY);
     
     
     // scale all the values down, basically averaging them
@@ -266,7 +266,7 @@ cv::Point EyeDetection::findEyeCenter(cv::Mat face, cv::Rect eye) {
 }
 
 
-std::vector<cv::Point3d> EyeDetection::computeSetSize(cv::Mat &mags,cv::Mat &gradientX, cv::Mat &gradientY){
+std::vector<cv::Point3d> EyeDetection::centerLoc(cv::Mat &mags,cv::Mat &gradientX, cv::Mat &gradientY){
     const double threshold = 0.0001;
     std::vector<cv::Point3d> centers;
     const double sigma = 0.1;
