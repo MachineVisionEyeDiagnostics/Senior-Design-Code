@@ -18,11 +18,12 @@
 class EyeDetection {
 
 public:
+    double dotproduct;
     cv::Mat mags;
 /** Function Headers */
-    cv::Point gradientFunction(int cx, int cy);
-    double objectiveFunction(int cx, int cy);
-    double computeSetSize(cv::Mat &mags);
+    cv::Point gradientFunction(int cx, int cy,cv::Mat &gradientX, cv::Mat &gradientY);
+    double objectiveFunction(int cx, int cy,cv::Mat &gradientX, cv::Mat &gradientY);
+    std::vector<cv::Point3d> computeSetSize(cv::Mat &mags,cv::Mat &gradientX, cv::Mat &gradientY);
 	void captureVideo();
 	void detectAndDisplay( cv::Mat );
 	void findEyes( cv::Mat, cv::Rect);
