@@ -18,12 +18,18 @@
 class EyeDetection {
 
 public:
+    cv::Mat eyeROI;
+    cv::Mat gradientX;
+    cv::Mat gradientY;
     double dotproduct;
     cv::Mat mags;
 /** Function Headers */
-    cv::Point gradientFunction(int cx, int cy,cv::Mat &gradientX, cv::Mat &gradientY);
-    double objectiveFunction(int cx, int cy,cv::Mat &gradientX, cv::Mat &gradientY);
-    std::vector<cv::Point3d> centerLoc(cv::Mat &mags,cv::Mat &gradientX, cv::Mat &gradientY);
+    double computeStepSize(void);
+    bool bordersReached(cv::Point c,cv::Mat& eyeROI );
+    double computeObjective(cv::Point c,cv::Mat&gradientX, cv::Mat&gradientY);
+    cv::Point computeGradient(cv::Point c, cv::Mat&gradientX, cv::Mat&gradientY);
+    cv::Point getIntitialCenter(cv::Mat &eyeROI);
+    cv::Point centerLoc(int max_trials,int iterations_max);
 	void captureVideo();
 	void detectAndDisplay( cv::Mat );
 	void findEyes( cv::Mat, cv::Rect);

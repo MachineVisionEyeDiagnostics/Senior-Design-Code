@@ -153,7 +153,6 @@ void EyeDetection::testPossibleCentersFormula(int x, int y, const cv::Mat &weigh
 
 cv::Point EyeDetection::findEyeCenter(cv::Mat face, cv::Rect eye) {
     cv::Mat eyeROIUnscaled = face(eye);
-    cv::Mat eyeROI;
     
      scaleToFastSize(eyeROIUnscaled, eyeROI);
     // draw eye region
@@ -169,9 +168,7 @@ cv::Point EyeDetection::findEyeCenter(cv::Mat face, cv::Rect eye) {
     cv::Mat mags = matrixMagnitude(gradientX, gradientY);
     */
     
-    cv::Mat gradientX;
     cv::Sobel(eyeROI, gradientX,CV_64F, 1, 0, 3);
-    cv::Mat gradientY;
     cv::Sobel(eyeROI, gradientY, CV_64F, 0, 1, 3);
     //-- Normalize and threshold the gradient
     // compute all the magnitudes
@@ -239,7 +236,7 @@ cv::Point EyeDetection::findEyeCenter(cv::Mat face, cv::Rect eye) {
     }
      */
    // double *Xr = gradientX.ptr<double>(), *Yr = gradientY.ptr<double>();
-    centerLoc(mags,gradientX,gradientY);
+    centerLoc(30,30);
     
     
     // scale all the values down, basically averaging them
@@ -264,127 +261,116 @@ cv::Point EyeDetection::findEyeCenter(cv::Mat face, cv::Rect eye) {
     }
     return unscalePoint(maxP,eye);
 }
-
-
-std::vector<cv::Point3d> EyeDetection::centerLoc(cv::Mat &mags,cv::Mat &gradientX, cv::Mat &gradientY){
-    const double threshold = 0.0001;
-    std::vector<cv::Point3d> centers;
-    const double sigma = 0.1;
-    const double beta = 0.5;
-    double a = 1;
-    int i = 0;
-    int maxiter = 30;
-    int maxtrials = 30;
-    //const int   max_iter = 30;
-    while( i < maxiter){
-            int cx = 0;
-            int cy = 0;
-            double obj = objectiveFunction(cx,cy,gradientX,gradientY);
-            cv::Point g = gradientFunction(cx,cy,gradientX,gradientY);
-            double g1 = g.x;
-            double g2 = g.y;
-            //int k = 0;
-            while( sqrt(g1*g1+g2*g2) > threshold ){
-                double newobj = objectiveFunction(cx-a*g1,cy-a*g1,gradientX,gradientY);
-                while((((newobj-obj)/a) > (sigma*-1*g1*g1+g2+g2))||(maxtrials--)){
-                    a = a*beta;
-                    newobj = objectiveFunction(cx-a*g1,cx-a*g2,gradientX,gradientY);
-                    centers.push_back(cv::Point3d(newobj,cx,cy));
-                }
-            }
-        i++;
-        cx++;
-        cy++;
-        }
-    return centers;
+bool comp(const cv::Point3d& a, const cv::Point3d& b)
+{
+    return (a.z < b.z);
 }
 
-double EyeDetection::objectiveFunction(int cx, int cy,cv::Mat &gradientX, cv::Mat &gradientY){
-   // cv::Mat out;
-    int n=0;
-    for (int y = 0; y < mags.rows; ++y) {
+
+cv::Point EyeDetection::centerLoc(int max_trials,int iterations_max)
+{
+    
+    double convergence_threshold = 10e-2;
+    std::vector<cv::Point3d> detected_centers;
+    for(int i = 0; i < max_trials; i++)
+    {
+        cv::Point c = getInitialCenter(eyeROI);
+        for(int j = 0; j< iterations_max; j++)
+        {
+            cv::Point c_old = c;
+            cv::Point g = computeGradient(c,gradientX,gradientY);
+            double s = computeStepSize();
+            c.x = c.x-s*g.x;
+            c.y = c.y-s*g.y;
+            if(!bordersReached(c,eyeROI))
+                break;
+            if(sqrt((c.x-c_old.x)*(c.x-c_old.x)-(c.y-c_old.y)*(c.y-c_old.y)) <= convergence_threshold)
+            {
+                double j = computeObjective(c,gradientX,gradientY);
+                detected_centers.push_back(cv::Point3d(c.x,c.y,j));
+            }
+        }
+    }
+    std::sort(detected_centers.begin(),detected_centers.end(),comp);
+    return(cv::Point(detected_centers[1].x,detected_centers[1].y));
+}
+
+cv::Point EyeDetection::getIntitialCenter(cv::Mat &eyeROI)
+{
+    cv::Point c;
+    //use W, H, to set up bounds for rand
+    c.x = rand();
+    c.y = rand();
+    return c;
+}
+
+cv::Point EyeDetection::computeGradient(cv::Point c, cv::Mat&gradientX, cv::Mat&gradientY)
+{
+    double partial_x, partial_y, e_i, n, dx, dy = 0.0;
+    cv::Point ctr = c;
+    for(int y = 0; y < gradientX.rows; ++y)
+    {
         const double *Xr = gradientX.ptr<double>(y), *Yr = gradientY.ptr<double>(y);
-        //const double *Or = out.ptr<double>(y);
-        for (int x = 0; x < mags.cols; ++x) {
+        for (int x = 0; x < gradientX.cols; ++x)
+        {
             double gx = Xr[x], gy = Yr[x];
-            
-            if (gx == 0.0 && gy == 0.0 && x == cx && y == cy) {
+            if (gx == 0.0 && gy == 0.0 && x == ctr.x && y == ctr.y)
+            {
                 continue;
             }
-            double dx = x - cx;
-            double dy = y - cy;
-            // normalize d
+            dx = x - ctr.x;
+            dy = y - ctr.y;
+            n = (sqrt((dx * dx) + (dy * dy)));
+            cv::Point g = cv::Point(gx,gy);
+            e_i = (x-ctr.x)*g.x+(y-ctr.y)*g.y;
+            partial_x += ( (x-ctr.x)*e_i*e_i -g.x*e_i*n*n )/(n*n*n*n);
+            partial_y += ( (x-ctr.y)*e_i*e_i -g.y*e_i*n*n )/(n*n*n*n);
+        }
+    }
+    return cv::Point(partial_x,partial_y);
+}
+
+double EyeDetection::computeStepSize(void)
+{
+    double a = 0.5;
+    static int i = 0;
+    return a/pow(a,i);
+}
+
+
+bool bordersReached(cv::Point c,cv::Mat& eyeROI )
+{
+    return (c.x > 0 && c.y > 0 && c.x < eyeROI.cols &&
+            c.y < eyeROI.rows);
+}
+
+double EyeDetection::computeObjective(cv::Point c,cv::Mat&gradientX, cv::Mat&gradientY)
+{
+    double dotproduct = 0.0;
+    cv::Point ctr = c;
+    int n=0;
+    for (int y = 0; y < gradientX.rows; ++y) {
+        const double *Xr = gradientX.ptr<double>(y), *Yr = gradientY.ptr<double>(y);
+        for (int x = 0; x < gradientX.cols; ++x) {
+            double gx = Xr[x], gy = Yr[x];
+            
+            if (gx == 0.0 && gy == 0.0 && x == ctr.x && y == ctr.y) {
+                continue;
+            }
+            double dx = x - ctr.x;
+            double dy = y - ctr.y;
             double magnitude = (sqrt((dx * dx) + (dy * dy)));
             dx = dx/magnitude;
             dy = dy/magnitude;
             dotproduct = abs(dx*gx + dy*gy);
             dotproduct = std::max(0.0,dotproduct);
-            dotproduct += 2*dotproduct; //(Wr[cx]/kWeightDivisor);
+            dotproduct += 2*dotproduct;
             n++;
         }
     }
     dotproduct = dotproduct/n;
     return (dotproduct);
 }
-
-cv::Point EyeDetection::gradientFunction(int cx, int cy, cv::Mat &gradientX, cv::Mat &gradientY){
-    for (int y = 0; y < mags.rows; ++y) {
-        const double *Xr = gradientX.ptr<double>(y), *Yr = gradientY.ptr<double>(y);
-        for (int x = 0; x < mags.cols; ++x) {
-            double gx = Xr[x], gy = Yr[x];
-            if (gx == 0.0 && gy == 0.0 && x == cx && y == cy) {
-                continue;
-            }
-            double dx = x - cx;
-            double dy = y - cy;
-            double n = (sqrt((dx * dx) + (dy * dy)));
-            cv::Mat g = cv::Mat::zeros(2, 1, UINT8_C(<#v#>));
-            g(0,0) = gx;
-            g(1,0) = gy;
-            cv::Mat c = cv::Mat::zeros(2,1);
-            c(0,0) = cx;
-            c(1,0) = cy;
-            double e = (x-cx)*g;
-            objdx += ((x-cx)*e*e -g.at<double>(0,0)*e*n*n)/(n*n*n*n);
-            objdy += ((x-cx)*e*e -g.at<double>(0,0)*e*n*n)/(n*n*n*n);
-        }
-    }
-    return cv::Point(objdx*2/(y+1), objdy*2/(y+1));
-}
-
-
-/*
- % Armijo stepsize rule parameters
- sigma = .1;
- beta = .5;
- obj=func(x);
- g=grad(x);
- k=0;                                  % k = # iterations
- nf=1;                    % nf = # function eval.
- 
- % Begin method
- while  norm(g) > 1e-6
- d = -g;                   % steepest descent direction
- a = 1;
- newobj = func(x + a*d);
- nf = nf+1;
- while (newobj-obj)/a > sigma*g'*d
- a = a*beta;
- newobj = func(x + a*d);
- nf = nf+1;
- end
- if (mod(k,100)==1) fprintf('%5.0f %5.0f %12.5e \n',k,nf,obj); end
- x = x + a*d;
- obj=newobj;
- g=grad(x);
- k = k + 1;
- end
- 
- % Output x and k
- x, k
- 
- */
-
 
 //#pragma mark Postprocessing
 
