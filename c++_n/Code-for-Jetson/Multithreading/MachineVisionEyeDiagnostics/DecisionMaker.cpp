@@ -1,59 +1,6 @@
 #include "DecisionMaker.h"
 #define PI 3.14159265
 
-
-/*
-struct {
-    bool operator() (cv::Point pt1, cv::Point pt2){
-        return (pt1.x < pt2.x);
-    }
-} PointSorterX;
-
-struct {
-    bool operator() (cv::Point pt1, cv::Point pt2){
-        return (pt1.y < pt2.y);
-    }
-} PointSorterY;
-
-struct {
-    bool operator() (cv::Point pt1, cv::Point pt2){
-        return ((pt1.y < pt2.y)&&(pt1.x<0)&&(pt2.x<0));
-    }
-} LowerPoint;
-
-struct {
-    bool operator() (cv::Point pt1, cv::Point pt2){
-        return (pt1.x > pt2.x);
-    }
-} UpperPointXm;
-
-struct {
-    bool operator() (cv::Point pt1, cv::Point pt2){
-        return (pt1.x < pt2.x);
-    }
-} UpperPointX;
-
-
-struct {
-    bool operator() (cv::Point pt1, cv::Point pt2){
-        return (pt1.x > pt2.x);
-    }
-} PointSorterXmx;
-
-struct {
-    bool operator() (cv::Point pt1, cv::Point pt2){
-        return (pt1.y > pt2.y);
-    }
-} PointSorterYmx;
-
-
-struct {
-    cv::Point top_left;
-    cv::Point top_right;
-    cv::Point bottom_left;
-    cv::Point bottom_right;
-}rectCorners;
-*/
 void::DecisionMaker::ImRecognizer()
 
 {
@@ -104,7 +51,7 @@ void::DecisionMaker::ImRecognizer()
         F =A*square.center.x*square.center.x+B*square.center.x*square.center.y+C*square.center.y*square.center.y-a*a*b*b;
         
     }
-    float inside = 0.0;
+    double inside = 0.0;
     int outside = 0;
 
     for(auto i:pupil_data_xy_image){
@@ -118,88 +65,14 @@ void::DecisionMaker::ImRecognizer()
     for(auto i: midpoints)
         std::cout<<i<<"::";
     std::cout<<"::"<<A<<','<<B<<','<<C<<','<<D<<','<<E<<','<<F<<"::";
-    float result = inside/pupil_data_xy_image.size();
+    double result = inside/pupil_data_xy_image.size();
     if(result > 0.6)
         std::cout<<'\n'<<"eye roll passed: "<<result<<'\n';
     else
         std::cout<<'\n'<<"eye roll failed: "<<result<<'\n';
 
-
     
-    
-
-    
-    
-    
-}/*
-    std::vector<cv::Point> Ydec = pupil_data_xy_image;
-    std::vector<cv::Point> Xdec = pupil_data_xy_image;
-    
-    std::sort(pupil_data_xy_image.begin(),pupil_data_xy_image.end(),PointSorterX);
-    
-    std::vector<cv::Point>::iterator result = std::min_element(pupil_data_xy_image.begin(),pupil_data_xy_image.end(),LowerPoint);
-    for(auto i = pupil_data_xy_image.begin(); i != pupil_data_xy_image.end(); i++){
-        if((*result).y == (*i).y){
-            rectCorners.bottom_left = (*i);
-            break;
-        }
-        else
-            rectCorners.bottom_left = *result;
-    }
-    result = std::max_element(pupil_data_xy_image.begin(),pupil_data_xy_image.end(),LowerPoint);
-    for(auto j = pupil_data_xy_image.begin(); j != pupil_data_xy_image.end(); j++){
-        if((*result).y == (*j).y){
-            rectCorners.top_left = (*j);
-            break;
-        }
-        else
-            rectCorners.top_left = *result;
-    }
-    
-   
-    
-    std::sort(Ydec.begin(),Ydec.end(),PointSorterYmx);
-    std::sort(Xdec.begin(),Xdec.end(),PointSorterXmx);
-    for(( std::vector<cv::Point> y,x = Ydec.begin(), Xdec.begin()); y != Ydec.end(); y++){
-        if((*y).x) == (*x).x);
-    }
-        
-    std::vector<cv::Point>::iterator result1;
-  
-    
-    for(auto i:pupil_data_xy_image){
-        std::cout<< i <<std::endl;
-    }
-        cout<<rectCorners.bottom_left<<" : ";
-        cout<<rectCorners.top_left<<" : ";
-        cout<<rectCorners.top_right<<" : ";
-        cout<<rectCorners.bottom_right<<" : ";
-*/
-/*
-void DecisionMaker::ImRecognizer()
-{
-    int j = (int)pupil_data_xy_image.size();
-    cv::Mat plot(cv::Size(j+200,j+100), CV_8U, 255);
-    for (int i = 0; i < j; i++)
-        plot.at<int>(pupil_data_xy_image[i]) = 0;
-    
-    cv::Mat element = (cv::Mat_<uchar>(5,5) <<  0,0,1,1,0,0,
-                       0,1,1,1,1,0,
-                       1,1,1,1,1,1,
-                       0,1,1,1,1,0,
-                       0,0,1,1,0,0);
-    /// Apply the erosion operation
-    cv::erode( plot, erosion_dst, element );
-    cv::erode( erosion_dst, plot, element);
-    cv::erode( plot, erosion_dst, element );
-    cv::erode( erosion_dst, plot, element );
-    cv::erode( plot, erosion_dst, element );
-
-    cv::imwrite("/Users/nicknorden/Desktop/snrProj/output/filtered_pupil_data.png", plot);
-    cv::destroyAllWindows();
 }
-*/
-
 void DecisionMaker::PupilDft(void){
 
     int len = (int)x_axis_pupil_points.size();
@@ -260,10 +133,6 @@ void DecisionMaker::WritePupilData(std::string pupil_data_file_name)
                (abs(pty) > MIN_Y_VAL)  )
                 
             {
-                /*
-                 *std::cout<<ptx<<','<<x_stack.top()<<'\t'
-                 *         <<pty<<','<<y_stack.top()<<std::endl;
-                 */
                 pupil_data_xy_image.push_back(cv::Point(ptx+100,pty+100));
                 filef<<ptx+100<<'\t'<<n++<<'\t'<<pty+100<<std::endl;
             }

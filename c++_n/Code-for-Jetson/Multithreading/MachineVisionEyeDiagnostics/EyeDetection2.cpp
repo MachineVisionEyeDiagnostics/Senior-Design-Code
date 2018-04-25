@@ -1,6 +1,6 @@
-/*
 #include "EyeDetection.h"
-
+#include <cstdlib>
+#include <ctime>
 const bool kEnablePostProcess = true;
 const float kPostProcessThreshold = 1;
 
@@ -10,7 +10,7 @@ void EyeDetection::captureVideo() {
     if(capture.isOpened()){
         capture.read(frame);
         while(1){
-            int64 start = cv::getTickCount();
+            //int64 start = cv::getTickCount();
             std::thread test(&cv::VideoCapture::read, capture, frame);
             
             if(!frame.empty()){
@@ -21,8 +21,8 @@ void EyeDetection::captureVideo() {
                 break;
             }
             test.join();
-            double fps = cv::getTickFrequency()/(cv::getTickCount()-start);
-            std::cout<<"FPS"<<fps<<std::endl;
+            //double fps = cv::getTickFrequency()/(cv::getTickCount()-start);
+            //std::cout<<"FPS"<<fps<<std::endl;
             int c = cv::waitKey(10);
             if((char)c == ' '){
                 break;
@@ -55,6 +55,7 @@ void EyeDetection::findEyes(cv::Mat frame_gray, cv::Rect face) {
     int eye_region_top = face.height * (kEyePercentTop/100.0);
     cv::Rect leftEyeRegion(face.width*(kEyePercentSide/100.0),eye_region_top,eye_region_width,eye_region_height);
     cv::Point leftPupil = findEyeCenter(faceROI,leftEyeRegion);
+    //std::cout<<leftPupil.x<<leftPupil.y<<'\n';
     leftPupil.x += leftEyeRegion.x;
     leftPupil.y += leftEyeRegion.y;
     pointList.push_back(cv::Point3d(leftPupil.x,leftPupil.y,1));
@@ -187,6 +188,7 @@ cv::Point EyeDetection::findEyeCenter(cv::Mat face, cv::Rect eye) {
     // it evaluates every possible center for each gradient location instead of
     // every possible gradient location for every center.
     //printf("Eye Size: %ix%i\n",outSum.cols,outSum.rows);
+    /*
     for (int y = 0; y < weight.rows; ++y) {
         const double *Xr = gradientX.ptr<double>(y), *Yr = gradientY.ptr<double>(y);
         
@@ -199,6 +201,8 @@ cv::Point EyeDetection::findEyeCenter(cv::Mat face, cv::Rect eye) {
             testPossibleCentersFormula(x, y, weight, gX, gY, outSum);
         }
     }
+    */
+    cv::Point eyem = centerLoc(5, 30, gradientX, gradientY, eyeROI);
     // scale all the values down, basically averaging them
     double numGradients = (weight.rows*weight.cols);
     cv::Mat out;
@@ -219,7 +223,7 @@ cv::Point EyeDetection::findEyeCenter(cv::Mat face, cv::Rect eye) {
         // redo max
         cv::minMaxLoc(out, NULL,&maxVal,NULL,&maxP,mask);
     }
-    return unscalePoint(maxP,eye);
+    return eyem;
 }
 
 //#pragma mark Postprocessing
@@ -287,4 +291,132 @@ double EyeDetection::computeDynamicThreshold(const cv::Mat &mat, double stdDevFa
     double stdDev = stdMagnGrad[0] / sqrt(mat.rows*mat.cols);
     return stdDevFactor * stdDev + meanMagnGrad[0];
 }
-*/
+
+cv::Point EyeDetection::centerLoc(int max_trials,int iterations_max,cv::Mat &gradientX, cv::Mat &gradientY,cv::Mat&eyeROI)
+{
+    
+    double convergence_threshold = 10e-6;
+    for(int i = 0; i < max_trials; i++)
+    {
+        cv::Point c = getIntitialCenter(eyeROI.rows,eyeROI.cols);
+        std::cout<<c<<std::endl;
+        for(int j = 0; j< iterations_max; j++)
+        {
+            cv::Point c_old = c;
+            cv::Point g = computeGradient(c,gradientX,gradientY);
+            double s = computeStepSize(c,gradientX,gradientY,g);
+            c.x = c.x-s*g.x;
+            c.y = c.y-s*g.y;
+            if(inMat(c, eyeROI.rows, eyeROI.cols))
+            {
+                std::cout<<"not in mat";
+                break;
+            }
+            if(sqrt((c.x-c_old.x)*(c.x-c_old.x)-(c.y-c_old.y)*(c.y-c_old.y)) <= convergence_threshold)
+            {
+                //std::cout<<"made it";
+                double j = computeObjective(c,gradientX,gradientY);
+                detected_centers.push_back(cv::Point3d(c.x,c.y,j));
+                //std::cout<<cv::Point3d(c.x,c.y,j)<<std::endl;
+            }
+        }
+    }
+    
+    std::sort(detected_centers.begin(), detected_centers.end(), [](const cv::Point3f &a, const cv::Point3f &b) {
+        return (a.z>b.z);
+    });
+    //std::cout<<detected_centers[0];
+    return(cv::Point(detected_centers[0].x,detected_centers[0].y));
+}
+
+
+cv::Point EyeDetection::getIntitialCenter(int rows, int cols)
+{
+    cv::Point c;
+    //use W, H, to set up bounds for rand
+    srand(time(NULL));
+    c.x = rand()%cols+1;
+    c.y = rand()%rows+1;
+    return c;
+}
+
+cv::Point EyeDetection::computeGradient(cv::Point c, cv::Mat &gradientX, cv::Mat &gradientY)
+{
+    double partial_x, partial_y, e_i, n, dx, dy = 0.0;
+    partial_x = 0.0;
+    partial_y = 0.0;
+    cv::Point ctr = c;
+    for(int y = 0; y < gradientX.rows; ++y)
+    {
+        double *Yr = gradientY.ptr<double>(y);
+        for (int x = 0; x < gradientX.cols; ++x)
+        {
+            double *Xr = gradientX.ptr<double>(x);
+            double gx = Xr[x], gy = Yr[x];
+            if (gx == 0.0 && gy == 0.0 && x == ctr.x && y == ctr.y)
+            {
+                continue;
+            }
+            dx = x - ctr.x;
+            dy = y - ctr.y;
+            n = (sqrt((dx * dx) + (dy * dy)));
+            cv::Point g = cv::Point(gx,gy);
+            e_i = (x-ctr.x)*g.x+(y-ctr.y)*g.y;
+            partial_x += ( (x-ctr.x)*e_i*e_i -g.x*e_i*n*n )/(n*n*n*n);
+            partial_y += ( (x-ctr.y)*e_i*e_i -g.y*e_i*n*n )/(n*n*n*n);
+        }
+    }
+    return cv::Point(partial_x,partial_y);
+}
+
+double EyeDetection::computeStepSize(cv::Point& c, cv::Mat& gradientX, cv::Mat& gradientY ,cv::Point& g)
+{
+    int j = 1;
+    double alpha = 1;
+    double sigma = 1;
+    const double delta = 0.5;
+    cv::Point2f c_new;
+    while(j>0)
+    {
+        c_new.x = c.x+alpha*g.x;
+        c_new.y = c.y+alpha*g.y;
+        if(computeObjective(c_new, gradientX, gradientY) <=
+           computeObjective(c, gradientX, gradientY)+alpha*sigma*(g.x*g.x+g.y*g.y))
+        {
+            j = 0;
+            return alpha;
+        }
+        else
+        {
+            alpha = alpha*delta;
+        }
+    }
+    return alpha;
+}
+
+
+double EyeDetection::computeObjective(cv::Point c,cv::Mat &gradientX, cv::Mat &gradientY)
+{
+    double dotproduct = 0.0;
+    cv::Point ctr = c;
+    int n=0;
+    for (int y = 0; y < gradientX.rows; ++y) {
+        double *Yr = gradientY.ptr<double>(y);
+        for (int x = 0; x < gradientX.cols; ++x) {
+            double *Xr = gradientX.ptr<double>(x);
+            double gx = Xr[x], gy = Yr[x];
+            double dx = x - ctr.x;
+            double dy = y - ctr.y;
+           // std::cout<<"dx: "<<dx<<"dy: "<<dy<<std::endl;
+            double magnitude = (sqrt((dx * dx) + (dy * dy)));
+            dx = dx/magnitude;
+            dy = dy/magnitude;
+            dotproduct = abs(dx*gx + dy*gy);
+            dotproduct = std::max(0.0,dotproduct);
+            dotproduct += 2*dotproduct;
+            n++;
+        }
+    }
+    dotproduct = dotproduct/n;
+    return (dotproduct);
+}
